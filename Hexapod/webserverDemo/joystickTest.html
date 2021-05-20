@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>x</title>
+		<meta content='width=device-width; initial-scale=1.0; maximum-scale=1.0; minimum-scale=1.0; user-scalable=no;' name='viewport'/>
+		<style>
+			#joystick-container {
+			border: solid 1px #000;
+			display: inline-block;
+			}
+			#joystick {
+				width: 100px;
+				height: 100px;
+				margin: 1px;
+				cursor: crosshair;
+			}
+		</style>
+
+	</head>
+	
+	<body class="noselect" onload="init();">
+	  <div id="joystick-container"><div id="joystick"></div></div>
+
+		<p><strong>Tip:</strong> Try to click different places in the heading.</p>
+
+		<p id="demo"></p>
+		<p id="xD"></p>
+	</body>
+	
+	<script>
+		var joystick = document.getElementById('joystick');
+		joystick.onmousemove = function (event) {
+			//document.getElementById("xD").innerHTML = "xD";
+			if(event.buttons === 1) {
+				var x = event.clientX - joystick.getBoundingClientRect().left - 50;
+				var y = - (event.clientY - joystick.getBoundingClientRect().top - 50);
+				var moved = 0;
+				if(x != 0 && y != 0)
+					moved = 1;
+					
+				var angle = Math.atan(y/x) * 180/Math.PI;
+				if(x < 0)
+					angle += 180;
+				else if(y < 0)
+					angle += 360;
+				if(angle < 90)
+					angle += 360;
+					angle -= 90;
+				
+				angle = parseInt(angle);
+				
+				document.getElementById("xD").innerHTML = angle;
+				document.getElementById("demo").innerHTML = moved;
+				
+				var xmlhttp=new XMLHttpRequest();
+				xmlhttp.open("PUT", moved + ";" + angle + ";", true);
+				xmlhttp.send();
+			}
+		};
+		
+		joystick.onmouseup = function (event) {
+			document.getElementById("xD").innerHTML = 0;
+			document.getElementById("demo").innerHTML = 0;
+			
+			var xmlhttp=new XMLHttpRequest();
+			xmlhttp.open("PUT", 0 + ";" + 0 + ";", true);
+			xmlhttp.send();
+		}
+
+	</script>
+</html>
+
+
+
