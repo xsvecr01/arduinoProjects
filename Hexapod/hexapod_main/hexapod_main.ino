@@ -1,15 +1,10 @@
+// hexapod_main file
 /********* INCLUDE *********/
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <cQueue.h>
 #include <pthread.h>
 #include <mutex>
-#include <BluetoothSerial.h>
-
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
-
 
 /********* CONSTANTS *********/
 #define S0  5   //coxa
@@ -52,11 +47,13 @@ Adafruit_PWMServoDriver pcaBoard = Adafruit_PWMServoDriver(0x40);
 
 
 enum LegPosition {Front, Middle, Back};
-enum State {Folded, Standing, Walking};
+enum State {Sitting, Standing, Walking};
 
 float RotateX(float x, float angle);
 float RotateY(float x, float y, float angle);
 unsigned long millis1();
+
+std::mutex _mtx;
 
 /********* CLASSES *********/
 
@@ -137,13 +134,15 @@ class MyServo
             _desired = angle;
         }
 
-        void Refresh()
+        void Refresh(unsigned long currM)
         {
             _currentMillis = millis();
 
             if(_currentMillis - _startMillis >= _duration)
+            //if(currM - _startMillis >= _duration)
             {
                 _startMillis = millis();
+                //_startMillis = currM;
                 _angle = _desired;
                 _prevAngle = _angle;
                 if(!q_isEmpty(&commandQ))
@@ -154,6 +153,7 @@ class MyServo
             else if(_desired != _angle);
             {
                 int16_t y = (int16_t) (_desired - _prevAngle) * ((_currentMillis - _startMillis) / _duration);
+                //int16_t y = (int16_t) (_desired - _prevAngle) * ((currM - _startMillis) / _duration);
                 _angle = _prevAngle + y;
             }
             _SetPos(_angle);
@@ -169,7 +169,6 @@ class MyServo
         float _duration = 400;
         unsigned long _currentMillis, _startMillis;
         bool _pca;
-        std::mutex _mtx;
         
 
         struct Command
@@ -305,12 +304,15 @@ class Leg
 
         bool Finished()
         {
-            if(q_getCount(&_Coxa->commandQ) <= 3 && q_getCount(&_Femur->commandQ) <= 3 && q_getCount(&_Tibia->commandQ) <= 3)
+            _mtx.lock();
+            if(q_getCount(&_Coxa->commandQ) <= 8 && q_getCount(&_Femur->commandQ) <= 8 && q_getCount(&_Tibia->commandQ) <= 8)
             {
+                _mtx.unlock();
                 return true;
             }
             else
             {
+                _mtx.unlock();
                 return false;
             }
                 
@@ -330,7 +332,7 @@ class Hexapod
         int Speed = 0;
         int Angle = 0;
         int Height = 1;
-        bool Fold = true;
+        bool Folded = true;
         bool Strafe = true;
         State state;
 
@@ -348,7 +350,7 @@ class Hexapod
             Legs[3] = LF;
             Legs[4] = LM;
             Legs[5] = LB;
-            state = Folded;
+            state = Sitting;
         }
 
         bool Finished()
@@ -356,21 +358,7 @@ class Hexapod
             return RF->Finished() && RM->Finished() && RB->Finished() && LF->Finished() && LM->Finished() && LB->Finished();
         }
 
-        void MovePrepareStep()
-        {
-            RF->Sleep(_duration/2);
-            RB->Sleep(_duration/2);
-            LM->Sleep(_duration/2);
-        }
-
-        void MoveWaitForStep()
-        {
-            LF->Sleep(_duration/2);
-            LB->Sleep(_duration/2);
-            RM->Sleep(_duration/2);
-        }
-
-        void MoveChangeHeight()
+        void SetHeight()
         {
             for(Leg *l : Legs)
             {
@@ -378,26 +366,73 @@ class Hexapod
             }
         }
 
-        void MoveUnfold()
+        void Fold(boolean fold)
         {
-            for(Leg *l : Legs)
+            if(fold)
             {
-                l->SetXYZ(0, 60, _height + 10, _height, _duration/2);
-                l->SetXYZ(0, 60, 1, _height, _duration/2);
+                for(Leg *l : Legs)
+                {
+                    l->SetXYZ(0, 60, _height + 10, _height, _duration/2);
+                    l->Fold(_duration/2);
+                }
+            }
+            else
+            {
+                for(Leg *l : Legs)
+                {
+                    l->SetXYZ(0, 60, _height + 10, _height, _duration/2);
+                    l->SetXYZ(0, 60, 1, _height, _duration/2);
+                }
             }
         }
 
-        void MoveFold()
+        void Prep33()
         {
+            RF->Sleep(_duration/2);
+            RB->Sleep(_duration/2);
+            LM->Sleep(_duration/2);
+        }
+
+        void Wait33()
+        {
+            LF->Sleep(_duration/4);
+            LB->Sleep(_duration/4);
+            RM->Sleep(_duration/4);
+        }
+
+        void Step33(float angle)
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float angle_ = angle;
+
+            
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
+            float z0 = 1;
+            
             for(Leg *l : Legs)
             {
-                //l->SetXYZ(0, 60, 1, height, _duration/2);
-                l->SetXYZ(0, 60, _height + 10, _height, _duration/2);
-                l->Fold(_duration/2);
+                angle = angle_;
+                x1 = x1_;
+                AngleX1(l, &angle, &x1);
+                                
+                l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration/4);
+                l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z1, _height, _duration/8);
+                l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z2, _height, _duration/8);
+                l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z1, _height, _duration/8);
+                l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z0, _height, _duration/8);
+                l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z0, _height, _duration/4);
             }
         }
 
-        void MoveStep(float angle)
+        void Prep42(float angle)
         {
             float x0 = 0;
             float x1 = 20;
@@ -417,28 +452,81 @@ class Hexapod
             {
                 angle = angle_;
                 x1 = x1_;
-
-                if(!l->_right)
-                {
-                    x1 = -x1;
-                    angle = -angle;
-                }
+                AngleX1(l, &angle, &x1);
                 
-                if(l->_right)
-                {
-                    if(l->_legPos == Front)
-                        angle -= 45;
-                    else if(l->_legPos == Back)
-                        angle += 45;
-                }
-                else
-                {
-                    angle += 180;
-                    if(l->_legPos == Front)
-                        angle -= 45;
-                    else if(l->_legPos == Back)
-                        angle += 45;
-                }
+                if(l->_legPos == Middle)
+                    l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration/2);
+
+                if((l->_legPos == Front && !l->_right) || (l->_legPos == Back && l->_right))
+                    l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration);                
+            }
+        }
+
+        void Step42(float angle)
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float angle_ = angle;
+            
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
+            float z0 = 1;
+            
+            for(Leg *l : Legs)
+            {
+                angle = angle_;
+                x1 = x1_;
+                AngleX1(l, &angle, &x1);
+
+                l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z1, _height, _duration/8);
+                l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z2, _height, _duration/8);
+                l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z1, _height, _duration/8);
+                l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z0, _height, _duration/8);
+                l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration);
+            }
+        }
+
+        void Prep51()
+        {
+            RF->Sleep(_duration/2);
+            RB->Sleep(_duration/2);
+            LM->Sleep(_duration/2);
+        }
+
+        void Wait51()
+        {
+            LF->Sleep(_duration/2);
+            LB->Sleep(_duration/2);
+            RM->Sleep(_duration/2);
+        }
+
+        void Step51(float angle)
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float angle_ = angle;
+            
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
+            float z0 = 1;
+            
+            for(Leg *l : Legs)
+            {
+                angle = angle_;
+                x1 = x1_;
+                AngleX1(l, &angle, &x1);
                 
                 l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration/4);
                 l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z1, _height, _duration/8);
@@ -447,10 +535,10 @@ class Hexapod
                 l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z0, _height, _duration/8);
                 l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z0, _height, _duration/4);
             }
-
         }
         
-        void RefreshStats()
+        
+        /*void Refresh()
         {
             if(Height == 0)
             {
@@ -472,12 +560,51 @@ class Hexapod
                 MoveChangeHeight();
                 _oldHeight = _height;
             }
-        }
+        }*/
 
     private:
         int _height = 30;
         int _oldHeight = _height;
         uint16_t _duration = 1000;
+
+        float RotateX(float x, float angle)
+        {
+            angle = (angle * PI) / 180;
+            float res = x * cos(angle);
+            return res;
+        }
+        
+        float RotateY(float x, float y, float angle)
+        {
+            angle = (angle * PI) / 180;
+            float res = x * -sin(angle) + y;
+            return res;
+        }
+
+        void AngleX1(Leg *l, float *angle, float *x1)
+        {
+            if(!l->_right)
+                {
+                    *x1 = -*x1;
+                    *angle = -*angle;
+                }
+                
+                if(l->_right)
+                {
+                    if(l->_legPos == Front)
+                        *angle -= 45;
+                    else if(l->_legPos == Back)
+                        *angle += 45;
+                }
+                else
+                {
+                    *angle += 180;
+                    if(l->_legPos == Front)
+                        *angle -= 45;
+                    else if(l->_legPos == Back)
+                        *angle += 45;
+                }
+        }
 };
 
 /********* VARIABLES *********/
@@ -526,26 +653,28 @@ Leg* allLegs[6];
 
 pthread_t thr_update;
 
-BluetoothSerial SerialBT;
+
 
 /********* FUNCTIONS *********/
 
-void* updateServos(void* d)
+void updateServos(void* d)
 {
-    delay(1000);
+    delay(500);
     int count = 0;
+    unsigned long currM = 0;
     Serial.println("updateServos running on core: ");
     Serial.println(xPortGetCoreID());
     while(1)
     {   
+        currM = millis();
         for (MyServo *servo : allServos)
         {
-            servo->Refresh();
+            servo->Refresh(currM);
         }
         count++;
         if(count > 1000)
         {
-            delay(1);
+            delay(2);
         }
     }
 }
@@ -605,82 +734,96 @@ void initServos()
 }
 
 
-float RotateX(float x, float angle)
-{
-    angle = (angle * PI) / 180;
-    float res = x * cos(angle);
-    return res;
-}
-
-float RotateY(float x, float y, float angle)
-{
-    angle = (angle * PI) / 180;
-    float res = x * -sin(angle) + y;
-    return res;
-}
 
 
-void ParseInput(char* input, int *out_strength, int *out_angle, bool *out_fold, bool *out_strafe, int *out_height)
-{
-    char *pch;
-    pch = strtok(input, ";");
-    int i = 0;
-    while (pch != NULL)
+
+
+int angle = 0;
+
+/*
+char input[100];
+char inChar = -1;
+int indx = 0;
+
+xd = 0;
+
+void loop1(void *asdf) {
+    while(1)
     {
-        //Serial.println(pch);
-        switch(i)
+        if(!xd)
         {
-            case 0:
-                *out_strength = atoi(pch);
-                break;
-            case 1:
-                *out_angle = atoi(pch);
-                break;
-            case 2:
-                *out_fold = atoi(pch);
-                break;
-            case 3:
-                *out_strafe = atoi(pch);
-                break;
-            case 4:
-                *out_height = atoi(pch);
-                break;
-            default:
-                break;
+            Serial.println("loop running on core: ");
+            Serial.println(xPortGetCoreID());
+            xd = 1;
         }
-        i++;
-        pch = strtok(NULL, ";");
-    }
-}
-
-void ReadInput(char* buf, int buf_size)
-{
-    char input[100];
-    char inChar = -1;
-    int indx = 0;
-    
-    if (Serial.available() > 0) 
-    {
-        while(inChar != '\n')
+        
+        if(Tronik.Finished())
         {
-            if(Serial.available() > 0)
+            switch(Tronik.state)
             {
-                inChar = Serial.read();
-                input[indx] = inChar;
-                indx++;
-                input[indx] = '\0';
+                case Folded:
+                    if(!Tronik.Fold)
+                    {   
+                        Tronik.MoveUnfold();
+                        Tronik.state = Standing;
+                    }
+                    break;
+                case Standing:
+                    Tronik.RefreshStats();
+                    if(Tronik.Fold)
+                    {
+                        Tronik.MoveFold();
+                        Tronik.state = Folded;
+                    }
+                    if(!Tronik.Fold && Tronik.Speed > 0)
+                    {
+                        Tronik.MovePrepareStep();
+                        Tronik.state = Walking;
+                    }
+                    break;
+                case Walking:
+                    if(Tronik.Speed > 0)
+                    {
+                        Tronik.MoveStep(Tronik.Angle);
+                    }
+                    else
+                    {
+                        Tronik.MoveWaitForStep();
+                        Tronik.state = Standing;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
-        Serial.println(input);
-        indx = 0;
-        inChar = -1;
+        
+        
+        
+        if (SerialBT.available() > 0) 
+        {
+            while(inChar != '\n')
+            {
+                if(SerialBT.available() > 0)
+                {
+                    inChar = SerialBT.read();
+                    input[indx] = inChar;
+                    indx++;
+                    input[indx] = '\0';
+                }
+            }
+            ParseInput(input, &Tronik.Speed, &Tronik.Angle, &Tronik.Fold, &Tronik.Strafe, &Tronik.Height);
+            indx = 0;
+            inChar = -1;
+        }
+        delay(1);
     }
-    sprintf(buf, input);
-    return;
 }
+*/
 
-int dur = 400;
-int angle = 0;
+TaskHandle_t TaskRefresh;
+
+//TaskHandle_t TaskLoop;
+
 /********* SETUP *********/
 void setup() {
     // put your setup code here, to run once:
@@ -690,103 +833,35 @@ void setup() {
     pcaBoard.setPWMFreq(FREQ);
 
     initServos();
-    delay(1000);
+    delay(500);
 
-    int res = pthread_create(&thr_update, NULL, updateServos, NULL);
+    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 4096, NULL, 4, &TaskRefresh, 1);
+    //xTaskCreatePinnedToCore(loop1, "TaskLoop", 8192, NULL, 0, &TaskLoop, 0);
 
-    SerialBT.begin("ESP32Hexapod");
+    //int res = pthread_create(&thr_update, NULL, updateServos, NULL);
 
-    /*for(int j = 0; j < 6; j++)
-    {
-        allLegs[j]->SetXYZ(0, 60, 1, 30, dur);
-    }*/
-    //Tronik.PrepareStep(dur);
+    delay(500);
+    Tronik.Fold(false);
 
-    //RightB.SetXYZ(-40, 60, 5, 0, dur);
-    //RightB.SetXYZ(0, 60, 5, 0, dur);
-    //RightB.SetXYZ(40, 60, 5, 0, dur);
+    //Tronik.Prep33();
 
-    /*String str = "100;115;0;0;0;\0";
-    char var[50];
-    sprintf(var, str);
-    int a,b,c;
-    bool x,d;
-
-    ParseInput(var, &a, &b, &x, &d, &c);
-
-    Serial.println(a);
-    Serial.println(b);
-    Serial.println(x);
-    Serial.println(d);
-    Serial.println(c);*/
-
-    
+    Tronik.Prep33();
 }
 
-char input[100];
-char inChar = -1;
-int indx = 0;
 
-int a,b,c;
-bool x,d;
+
 /********* MAIN *********/
+int xd = 0;
 void loop() {
+    if(!xd)
+    {
+        Serial.println("loop running on core: ");
+        Serial.println(xPortGetCoreID());
+        xd = 1;
+    }
     if(Tronik.Finished())
     {
-        switch(Tronik.state)
-        {
-            case Folded:
-                if(!Tronik.Fold)
-                {   
-                    Tronik.MoveUnfold();
-                    Tronik.state = Standing;
-                }
-                break;
-            case Standing:
-                Tronik.RefreshStats();
-                if(Tronik.Fold)
-                {
-                    Tronik.MoveFold();
-                    Tronik.state = Folded;
-                }
-                if(!Tronik.Fold && Tronik.Speed > 0)
-                {
-                    Tronik.MovePrepareStep();
-                    Tronik.state = Walking;
-                }
-                break;
-            case Walking:
-                if(Tronik.Speed > 0)
-                {
-                    Tronik.MoveStep(Tronik.Angle);
-                }
-                else
-                {
-                    Tronik.MoveWaitForStep();
-                    Tronik.state = Standing;
-                }
-                break;
-            default:
-                break;
-        }
+        Tronik.Step33(0);
     }
-    
-    
-    
-    if (SerialBT.available() > 0) 
-    {
-        while(inChar != '\n')
-        {
-            if(SerialBT.available() > 0)
-            {
-                inChar = SerialBT.read();
-                input[indx] = inChar;
-                indx++;
-                input[indx] = '\0';
-            }
-        }
-        ParseInput(input, &Tronik.Speed, &Tronik.Angle, &Tronik.Fold, &Tronik.Strafe, &Tronik.Height);
-        indx = 0;
-        inChar = -1;
-    }
+
 }

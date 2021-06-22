@@ -583,11 +583,11 @@ void setup() {
 
 
 
-    for(int j = 0; j < 6; j++)
+    /*for(int j = 0; j < 6; j++)
     {
         //allLegs[i]->Middle(1000);
         allLegs[j]->SetXYZ(0, 60, 1, 30, dur);
-    }
+    }*/
     Tronik.PrepareStep(dur);
 
 }
