@@ -4,7 +4,6 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <cQueue.h>
 #include <pthread.h>
-#include <mutex>
 
 /********* CONSTANTS *********/
 #define S0  5   //coxa
@@ -53,7 +52,6 @@ float RotateX(float x, float angle);
 float RotateY(float x, float y, float angle);
 unsigned long millis1();
 
-std::mutex _mtx;
 
 /********* CLASSES *********/
 
@@ -120,10 +118,7 @@ class MyServo
             uint8_t tmp_angle = _desired;
 
             Command *cmd = new (Command){angle, duration};
-            
-            _mtx.lock();
             q_push(&commandQ, &cmd);
-            _mtx.unlock();
         }
 
         void SetPosFast(uint8_t angle)
@@ -152,7 +147,6 @@ class MyServo
             else if(_desired != _angle);
             {
                 int16_t y = (int16_t) (_desired - _prevAngle) * ((_currentMillis - _startMillis) / _duration);
-                //int16_t y = (int16_t) (_desired - _prevAngle) * ((currM - _startMillis) / _duration);
                 _angle = _prevAngle + y;
             }
             _SetPos(_angle);
@@ -199,13 +193,10 @@ class MyServo
         void _PopQueue()
         {
             Command* cmd;
-            
-            _mtx.lock();
             q_pop(&commandQ, &cmd);
-            _mtx.unlock();
-            
             _desired = cmd->angle;
             _duration = cmd->duration;
+
             delete cmd;
         }
 };
@@ -303,15 +294,12 @@ class Leg
 
         bool Finished()
         {
-            _mtx.lock();
             if(q_getCount(&_Coxa->commandQ) <= 8 && q_getCount(&_Femur->commandQ) <= 8 && q_getCount(&_Tibia->commandQ) <= 8)
             {
-                _mtx.unlock();
                 return true;
             }
             else
             {
-                _mtx.unlock();
                 return false;
             }
                 
@@ -652,7 +640,7 @@ Leg* allLegs[6];
 
 pthread_t thr_update;
 
-
+char ptrTaskList[250];
 
 /********* FUNCTIONS *********/
 
@@ -687,16 +675,6 @@ void updateServos(void* d)
         count++;
         if(count > 500)
         {
-            /*Serial.println("__________");
-            Serial.println(count);
-            Serial.print("Free:");
-            Serial.print(ESP.getFreeHeap());
-            Serial.print(", Min:");
-            Serial.print(ESP.getMinFreeHeap());
-            Serial.print(", Size:");
-            Serial.print(ESP.getHeapSize());
-            Serial.print(", Alloc:");
-            Serial.println(ESP.getMaxAllocHeap());*/
             count = 1;
             delay(1);
         }
@@ -862,7 +840,7 @@ void setup() {
     Serial.println("--------");
     while(Serial.available() == 0){
     }
-    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 8000, NULL, 8, &TaskRefresh, 1);
+    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 4096, NULL, 2, &TaskRefresh, 0);
     //xTaskCreatePinnedToCore(loop1, "TaskLoop", 8192, NULL, 0, &TaskLoop, 0);
 
     //int res = pthread_create(&thr_update, NULL, updateServos, NULL);
