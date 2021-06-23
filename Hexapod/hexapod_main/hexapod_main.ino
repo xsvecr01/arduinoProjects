@@ -134,10 +134,9 @@ class MyServo
             _desired = angle;
         }
 
-        void Refresh(unsigned long currM)
+        void Refresh()
         {
             _currentMillis = millis();
-
             if(_currentMillis - _startMillis >= _duration)
             //if(currM - _startMillis >= _duration)
             {
@@ -565,7 +564,7 @@ class Hexapod
     private:
         int _height = 30;
         int _oldHeight = _height;
-        uint16_t _duration = 1000;
+        uint16_t _duration = 1400;
 
         float RotateX(float x, float angle)
         {
@@ -659,22 +658,47 @@ pthread_t thr_update;
 
 void updateServos(void* d)
 {
-    delay(500);
-    int count = 0;
-    unsigned long currM = 0;
+    delay(1000);
+    uint16_t count = 0;
+    //unsigned long currM, postM = 0;
     Serial.println("updateServos running on core: ");
     Serial.println(xPortGetCoreID());
     while(1)
-    {   
-        currM = millis();
+    {
+        //currM = millis();
+        //currM = millis();
+        /*for(int i = 0; i < 18; i++)
+        {
+            allServos[i]->Refresh();
+        }*/
         for (MyServo *servo : allServos)
         {
-            servo->Refresh(currM);
+            servo->Refresh();
         }
+        //postM = millis();
+
+        /*Serial.print(count);
+        Serial.print(" start:");
+        Serial.print(currM);
+        Serial.print(", end:");
+        Serial.print(postM);
+        Serial.print(", diff:");
+        Serial.println(postM - currM);*/
         count++;
-        if(count > 1000)
+        if(count > 500)
         {
-            delay(2);
+            /*Serial.println("__________");
+            Serial.println(count);
+            Serial.print("Free:");
+            Serial.print(ESP.getFreeHeap());
+            Serial.print(", Min:");
+            Serial.print(ESP.getMinFreeHeap());
+            Serial.print(", Size:");
+            Serial.print(ESP.getHeapSize());
+            Serial.print(", Alloc:");
+            Serial.println(ESP.getMaxAllocHeap());*/
+            count = 1;
+            delay(1);
         }
     }
 }
@@ -835,12 +859,15 @@ void setup() {
     initServos();
     delay(500);
 
-    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 4096, NULL, 4, &TaskRefresh, 1);
+    Serial.println("--------");
+    while(Serial.available() == 0){
+    }
+    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 8000, NULL, 8, &TaskRefresh, 1);
     //xTaskCreatePinnedToCore(loop1, "TaskLoop", 8192, NULL, 0, &TaskLoop, 0);
 
     //int res = pthread_create(&thr_update, NULL, updateServos, NULL);
 
-    delay(500);
+    delay(2000);
     Tronik.Fold(false);
 
     //Tronik.Prep33();
@@ -863,5 +890,6 @@ void loop() {
     {
         Tronik.Step33(0);
     }
+    delay(1);
 
 }
