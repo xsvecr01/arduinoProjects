@@ -91,7 +91,7 @@ class Leg
 
         bool Finished()
         {
-            if(q_getCount(&_Coxa->commandQ) <= 8 && q_getCount(&_Femur->commandQ) <= 8 && q_getCount(&_Tibia->commandQ) <= 8)
+            if(_Coxa->QueueFinished() && _Femur->QueueFinished() && _Tibia->QueueFinished())
             {
                 return true;
             }

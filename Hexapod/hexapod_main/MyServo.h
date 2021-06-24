@@ -5,9 +5,6 @@
 class MyServo
 {
     public:
-        Queue_t commandQ;
-        unsigned long _diffMillis;
-
         MyServo(uint8_t pin, Adafruit_PWMServoDriver *pca, uint8_t channel = 0)
         {
             if (!pca)
@@ -22,7 +19,11 @@ class MyServo
 
             _prevAngle = _angle = _default = _mid = 90;
 
-            q_init(&commandQ, sizeof(Command), 30, FIFO, false);
+            commandQ = xQueueCreate(16, sizeof(struct Command));
+            if(!commandQ)
+            {
+                Serial.println("Error queue");
+            }
         }
 
         uint8_t GetMid()
@@ -52,10 +53,12 @@ class MyServo
         {
             uint8_t tmp_angle = _desired;
             Command *tmp;
-            if(q_peekPrevious(&commandQ, &tmp))
+
+            if(xQueuePeek(commandQ, &tmp, 0))
             {
                 tmp_angle = tmp->angle;
             }
+
             SetPos(tmp_angle, duration);
         }
 
@@ -65,7 +68,7 @@ class MyServo
             uint8_t tmp_angle = _desired;
 
             Command *cmd = new (Command){angle, duration};
-            q_push(&commandQ, &cmd);
+            xQueueSend(commandQ, &cmd, 10);
         }
 
         void SetPosFast(uint8_t angle)
@@ -80,20 +83,30 @@ class MyServo
         {
             //_currentMillis = millis();
             //if(_currentMillis - _startMillis >= _duration)
-            Serial.println("1");
+            //Serial.println("1");
             if(currM - _startMillis >= _duration)
             {
-                Serial.println("2");
+                //Serial.println("2");
                 //_startMillis = millis();
                 _startMillis = currM;
                 _angle = _desired;
                 _prevAngle = _angle;
-                Serial.println("3");
-                if(!q_isEmpty(&commandQ))
+                //Serial.println("3");
+
+                //Command *tmp;
+                //if(xQueuePeek(commandQ, &tmp, 0))
+                //{
+                Command* cmd;
+                //Serial.println("4");
+                if(xQueueReceive(commandQ, &cmd, 0))
                 {
-                    _PopQueue();
+                    //Serial.println("5");
+                    _desired = cmd->angle;
+                    _duration = cmd->duration;
                 }
-                Serial.println("4");
+                //}
+
+                //Serial.println("6");
             }
             else if(_desired != _angle);
             {
@@ -102,16 +115,28 @@ class MyServo
                 //Serial.print(y);
                 //Serial.print("_______________");
                 //Serial.println((_desired - _prevAngle) * ((currM - _startMillis) / _duration));
-                Serial.println("5");
+                //Serial.println("7");
                 _angle = _prevAngle + (_desired - _prevAngle) * ((currM - _startMillis) / _duration);
-                Serial.println("6");
+                /*Serial.println("8");
                 Serial.print(_desired);Serial.print(" - ");Serial.print(_prevAngle);Serial.print(" * ");
                 Serial.print(currM);Serial.print(" - ");Serial.print(_startMillis);Serial.print(" / ");Serial.println(_duration);
-                Serial.println(_angle);
+                Serial.println(_angle);*/
             }
-            Serial.println("7");
+            //Serial.println("9");
             _SetPos(_angle);
-            Serial.println("8");
+            //Serial.println("10");
+        }
+
+        bool QueueFinished()
+        {
+            if(uxQueueMessagesWaiting(commandQ) <= 8)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         uint8_t GetPos()
@@ -121,6 +146,7 @@ class MyServo
 
     private:
         Adafruit_PWMServoDriver *pcaBoard;
+        QueueHandle_t commandQ;
         
         uint8_t _pin, _channel, _mid, _default, _angle, _prevAngle, _desired;
         float _duration = 400;
@@ -152,15 +178,5 @@ class MyServo
                 pcaBoard->setPWM(_pin, 0, _GetDuty(angle));
             }
             _angle = angle;
-        }     
-
-        void _PopQueue()
-        {
-            Command* cmd;
-            q_pop(&commandQ, &cmd);
-            _desired = cmd->angle;
-            _duration = cmd->duration;
-
-            delete cmd;
         }
 };

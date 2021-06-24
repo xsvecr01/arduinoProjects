@@ -165,7 +165,7 @@ void setup() {
     Serial.println("--------");
     while(Serial.available() == 0){
     }
-    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 4096, NULL, 2, &TaskRefresh, 0);
+    xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 8192, NULL, 2, &TaskRefresh, 1);
     //xTaskCreatePinnedToCore(loop1, "TaskLoop", 8192, NULL, 0, &TaskLoop, 0);
 
     //int res = pthread_create(&thr_update, NULL, updateServos, NULL);
