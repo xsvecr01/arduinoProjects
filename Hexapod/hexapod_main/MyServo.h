@@ -52,11 +52,11 @@ class MyServo
         void Sleep(uint16_t duration)
         {
             uint8_t tmp_angle = _desired;
-            Command *tmp;
+            Command tmp;
 
             if(xQueuePeek(commandQ, &tmp, 0))
             {
-                tmp_angle = tmp->angle;
+                tmp_angle = tmp.angle;
             }
 
             SetPos(tmp_angle, duration);
@@ -67,7 +67,9 @@ class MyServo
         {
             uint8_t tmp_angle = _desired;
 
-            Command *cmd = new (Command){angle, duration};
+            Command cmd;
+            cmd.angle = angle;
+            cmd.duration = duration;
             xQueueSend(commandQ, &cmd, 10);
         }
 
@@ -96,17 +98,17 @@ class MyServo
                 //Command *tmp;
                 //if(xQueuePeek(commandQ, &tmp, 0))
                 //{
-                Command* cmd;
+                Command cmd;
                 //Serial.println("4");
                 if(xQueueReceive(commandQ, &cmd, 0))
                 {
                     //Serial.println("5");
-                    _desired = cmd->angle;
-                    _duration = cmd->duration;
+                    _desired = cmd.angle;
+                    _duration = cmd.duration;
                 }
                 //}
 
-                //Serial.println("6");
+               //Serial.println("6");
             }
             else if(_desired != _angle);
             {

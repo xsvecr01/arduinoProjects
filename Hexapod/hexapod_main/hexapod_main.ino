@@ -49,9 +49,6 @@ Hexapod Tronik(&RightF, &RightM, &RightB, &LeftF, &LeftM, &LeftB);
 MyServo* allServos[18];
 Leg* allLegs[6];
 
-pthread_t thr_update;
-
-char ptrTaskList[250];
 
 /********* FUNCTIONS *********/
 
@@ -65,15 +62,33 @@ void updateServos(void* d)
     while(1)
     {
         currM = millis();
-        //currM = millis();
-        /*for(int i = 0; i < 18; i++)
+        
+        /*for(int i = 0; i < 8; i++)
         {
-            allServos[i]->Refresh();
+            allServos[i]->Refresh(currM);
+        }
+        
+        
+        
+        for(int i = 8; i < 18; i++)
+        {
+            allServos[i]->Refresh(currM);
         }*/
+        
         for (MyServo *servo : allServos)
         {
+            Serial.print("x");
             servo->Refresh(currM);
+            Serial.println("D");
         }
+
+        count++;
+        if(count > 500)
+        {
+            count = 1;
+            delay(1);
+        }
+        
         //postM = millis();
 
         /*Serial.print(count);
@@ -83,12 +98,7 @@ void updateServos(void* d)
         Serial.print(postM);
         Serial.print(", diff:");
         Serial.println(postM - currM);*/
-        count++;
-        if(count > 500)
-        {
-            count = 1;
-            delay(1);
-        }
+        
     }
 }
 
@@ -149,7 +159,6 @@ int angle = 0;
 
 TaskHandle_t TaskRefresh;
 
-//TaskHandle_t TaskLoop;
 
 /********* SETUP *********/
 void setup() {
@@ -162,13 +171,11 @@ void setup() {
     initServos();
     delay(500);
 
-    Serial.println("--------");
+    /*Serial.println("--------");
     while(Serial.available() == 0){
-    }
+    }*/
     xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 8192, NULL, 2, &TaskRefresh, 1);
     //xTaskCreatePinnedToCore(loop1, "TaskLoop", 8192, NULL, 0, &TaskLoop, 0);
-
-    //int res = pthread_create(&thr_update, NULL, updateServos, NULL);
 
     delay(2000);
     Tronik.Fold(false);

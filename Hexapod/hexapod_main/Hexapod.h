@@ -241,7 +241,7 @@ class Hexapod
     private:
         int _height = 30;
         int _oldHeight = _height;
-        uint16_t _duration = 1400;
+        uint16_t _duration = 1000;
 
         float RotateX(float x, float angle)
         {
