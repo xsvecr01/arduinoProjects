@@ -42,8 +42,15 @@ class Leg
                 _Femur->SetPos(_Femur->GetMid() + (alpha - 90), duration);
                 _Tibia->SetPos(_Tibia->GetMid() - (beta - 90), duration);
             }
-            
         }
+
+        void Rotate(uint16_t angle, uint16_t duration)
+        {
+            _Coxa->SetPos(_Coxa->GetMid() + (angle - 90), duration);
+            _Femur->Sleep(duration);
+            _Tibia->Sleep(duration);
+        }
+
 
         void Sleep(uint16_t duration)
         {
@@ -57,6 +64,13 @@ class Leg
             _Coxa->SetPos(_Coxa->GetMid(), duration);
             _Femur->SetPos(_Femur->GetMid(), duration);
             _Tibia->SetPos(_Tibia->GetMid(), duration);
+        }
+
+        void Clear()
+        {
+            _Coxa->Clear();
+            _Femur->Clear();
+            _Tibia->Clear();
         }
 
         void FoldFast()
@@ -98,8 +112,19 @@ class Leg
             else
             {
                 return false;
+            }  
+        }
+
+        bool IsMiddle()
+        {
+            if(_Coxa->GetPos() == _Coxa->GetMid() && _Femur->GetPos() == _Femur->GetMid() && _Tibia->GetPos() == _Tibia->GetMid())
+            {
+                return true;
             }
-                
+            else
+            {
+                return false;
+            }
         }
 
     private:

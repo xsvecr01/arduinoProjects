@@ -56,30 +56,16 @@ void updateServos(void* d)
 {
     delay(1000);
     uint16_t count = 0;
-    unsigned long currM, postM = 0;
+    unsigned long currM = 0;
     Serial.println("updateServos running on core: ");
     Serial.println(xPortGetCoreID());
     while(1)
     {
         currM = millis();
         
-        /*for(int i = 0; i < 8; i++)
-        {
-            allServos[i]->Refresh(currM);
-        }
-        
-        
-        
-        for(int i = 8; i < 18; i++)
-        {
-            allServos[i]->Refresh(currM);
-        }*/
-        
         for (MyServo *servo : allServos)
         {
-            Serial.print("x");
             servo->Refresh(currM);
-            Serial.println("D");
         }
 
         count++;
@@ -88,17 +74,6 @@ void updateServos(void* d)
             count = 1;
             delay(1);
         }
-        
-        //postM = millis();
-
-        /*Serial.print(count);
-        Serial.print(" start:");
-        Serial.print(currM);
-        Serial.print(", end:");
-        Serial.print(postM);
-        Serial.print(", diff:");
-        Serial.println(postM - currM);*/
-        
     }
 }
 
@@ -171,18 +146,16 @@ void setup() {
     initServos();
     delay(500);
 
-    /*Serial.println("--------");
-    while(Serial.available() == 0){
-    }*/
     xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 8192, NULL, 2, &TaskRefresh, 1);
-    //xTaskCreatePinnedToCore(loop1, "TaskLoop", 8192, NULL, 0, &TaskLoop, 0);
 
     delay(2000);
     Tronik.Fold(false);
 
+    Tronik.Prep33();
+
     //Tronik.Prep33();
 
-    Tronik.Prep42(0);
+    //Tronik.Prep51(0);
 }
 
 
@@ -190,6 +163,18 @@ void setup() {
 /********* MAIN *********/
 int xd = 0;
 void loop() {
+
+    /*
+    switch(Tronik.state)
+    {
+        case Sitting:
+            break;
+        case Standing:
+            break;
+        case Walking:
+            break;
+    }*/
+    
     if(!xd)
     {
         Serial.println("loop running on core: ");
@@ -198,7 +183,7 @@ void loop() {
     }
     if(Tronik.Finished())
     {
-        Tronik.Step42(0);
+        Tronik.RotL33();
     }
     delay(1);
 

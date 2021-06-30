@@ -20,12 +20,12 @@ class Hexapod
             LF = LeftFront;
             LM = LeftMiddle;
             LB = LeftBack;
-            Legs[0] = RF;
+            Legs[0] = RB;
             Legs[1] = RM;
-            Legs[2] = RB;
-            Legs[3] = LF;
+            Legs[2] = RF;
+            Legs[3] = LB;
             Legs[4] = LM;
-            Legs[5] = LB;
+            Legs[5] = LF;
             state = Sitting;
         }
 
@@ -39,6 +39,14 @@ class Hexapod
             for(Leg *l : Legs)
             {
                 l->SetXYZ(0, 60, 1, _height, _duration);
+            }
+        }
+
+        void Stop()
+        {
+            for(Leg *l : Legs)
+            {
+                l->Clear();
             }
         }
 
@@ -59,6 +67,8 @@ class Hexapod
                     l->SetXYZ(0, 60, _height + 10, _height, _duration/2);
                     l->SetXYZ(0, 60, 1, _height, _duration/2);
                 }
+                //LF->SetXYZ(0, 60, _height + 10, _height, _duration/2);
+                //LF->SetXYZ(0, 60, 1, _height, _duration/2);
             }
         }
 
@@ -67,13 +77,6 @@ class Hexapod
             RF->Sleep(_duration/2);
             RB->Sleep(_duration/2);
             LM->Sleep(_duration/2);
-        }
-
-        void Wait33()
-        {
-            LF->Sleep(_duration/4);
-            LB->Sleep(_duration/4);
-            RM->Sleep(_duration/4);
         }
 
         void Step33(float angle)
@@ -106,6 +109,40 @@ class Hexapod
                 l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z0, _height, _duration/8);
                 l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z0, _height, _duration/4);
             }
+        }
+
+        void RotL33()
+        {
+            for(Leg *l : Legs)
+            {
+                RotLegL(l, 0.5);
+            }
+            //RotLegL(LF, 0.5);
+        }
+
+        void RotR33()
+        {
+            for(Leg *l : Legs)
+            {
+                RotLegR(l, 0.5);
+            }
+        }
+
+        void PrepRot33()
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float z0 = 1;
+            
+            LF->SetXYZ(x0, y, z2, _height, _duration/4);
+            LF->SetXYZ(x0, y, z0, _height, _duration/4);
+            LB->SetXYZ(x0, y, z2, _height, _duration/4);
+            LB->SetXYZ(x0, y, z0, _height, _duration/4);
+            RM->SetXYZ(x0, y, z2, _height, _duration/4);
+            RM->SetXYZ(x0, y, z0, _height, _duration/4);
         }
 
         void Prep42(float angle)
@@ -168,21 +205,7 @@ class Hexapod
             }
         }
 
-        void Prep51()
-        {
-            RF->Sleep(_duration/2);
-            RB->Sleep(_duration/2);
-            LM->Sleep(_duration/2);
-        }
-
-        void Wait51()
-        {
-            LF->Sleep(_duration/2);
-            LB->Sleep(_duration/2);
-            RM->Sleep(_duration/2);
-        }
-
-        void Step51(float angle)
+        void Prep51(float angle)
         {
             float x0 = 0;
             float x1 = 20;
@@ -198,23 +221,48 @@ class Hexapod
             float z1 = z2 / 2;
             float z0 = 1;
             
+            for(int i = 0; i < 6; i++)
+            {
+                angle = angle_;
+                x1 = x1_;
+                AngleX1(Legs[i], &angle, &x1);
+
+                Legs[i]->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, (_duration / 2) * (i+1));
+            }
+        }
+
+        void Step51(float angle)
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float angle_ = angle;
+
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
+            float z0 = 1;
+
             for(Leg *l : Legs)
             {
                 angle = angle_;
                 x1 = x1_;
                 AngleX1(l, &angle, &x1);
-                
-                l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration/4);
+
                 l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z1, _height, _duration/8);
                 l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z2, _height, _duration/8);
                 l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z1, _height, _duration/8);
                 l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z0, _height, _duration/8);
-                l->SetXYZ(RotateX(x0, angle),  RotateY(x0, y, angle),  z0, _height, _duration/4);
+                l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration * 2.5);
             }
         }
+       
         
-        
-        /*void Refresh()
+        void ChangeHeight()
         {
             if(Height == 0)
             {
@@ -233,15 +281,73 @@ class Hexapod
             }
             if(_oldHeight != _height)
             {
-                MoveChangeHeight();
+                SetHeight();
                 _oldHeight = _height;
             }
-        }*/
+        }
 
     private:
         int _height = 30;
         int _oldHeight = _height;
-        uint16_t _duration = 1000;
+        uint16_t _duration = 2000;
+
+        // 72 to 108
+        // dur: _duration * dur
+        // 33gait: dur = 0.5 
+        void RotLegR(Leg *l, float dur)
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float angle_, angle = 0;
+
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
+            float z0 = 1;
+
+            angle = angle_;
+            x1 = x1_;
+            AngleX1(l, &angle, &x1);
+
+            l->Rotate(108, _duration * dur);
+            l->SetXYZ(-x1, y, z1, _height, _duration/8);
+            l->SetXYZ(x0, y, z2, _height, _duration/8);
+            l->SetXYZ(x1, y, z1, _height, _duration/8);
+            l->SetXYZ(x1, y, z0, _height, _duration/8);
+        }
+
+        void RotLegL(Leg *l, float dur)
+        {
+            float x0 = 0;
+            float x1 = 20;
+            float x1_ = x1;
+            float y = 60;
+            float z2 = _height - 10;
+            float angle_, angle = 0;
+
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
+            float z0 = 1;
+
+            angle = angle_;
+            x1 = x1_;
+            AngleX1(l, &angle, &x1);
+
+            l->Rotate(72, _duration * dur);
+            l->SetXYZ(x1, y, z1, _height, _duration/8);
+            l->SetXYZ(x0, y, z2, _height, _duration/8);
+            l->SetXYZ(-x1, y, z1, _height, _duration/8);
+            l->SetXYZ(-x1, y, z0, _height, _duration/8);
+        }
+
 
         float RotateX(float x, float angle)
         {

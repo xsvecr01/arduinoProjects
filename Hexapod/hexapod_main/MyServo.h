@@ -20,10 +20,6 @@ class MyServo
             _prevAngle = _angle = _default = _mid = 90;
 
             commandQ = xQueueCreate(16, sizeof(struct Command));
-            if(!commandQ)
-            {
-                Serial.println("Error queue");
-            }
         }
 
         uint8_t GetMid()
@@ -51,22 +47,22 @@ class MyServo
 
         void Sleep(uint16_t duration)
         {
-            uint8_t tmp_angle = _desired;
+            
+            /*uint8_t tmp_angle = _desired;
             Command tmp;
 
             if(xQueuePeek(commandQ, &tmp, 0))
             {
                 tmp_angle = tmp.angle;
-            }
+            }*/
 
-            SetPos(tmp_angle, duration);
+            SetPos(_lastInserted, duration);
         }
 
 
         void SetPos(uint8_t angle, float duration)
         {
-            uint8_t tmp_angle = _desired;
-
+            _lastInserted = angle;
             Command cmd;
             cmd.angle = angle;
             cmd.duration = duration;
@@ -76,57 +72,30 @@ class MyServo
         void SetPosFast(uint8_t angle)
         {
             _SetPos(angle);
-            _angle = angle;
-            _prevAngle = angle;
-            _desired = angle;
+            _angle = _prevAngle = _desired = _lastInserted = angle;
         }
 
         void Refresh(unsigned long currM)
         {
-            //_currentMillis = millis();
-            //if(_currentMillis - _startMillis >= _duration)
-            //Serial.println("1");
             if(currM - _startMillis >= _duration)
             {
-                //Serial.println("2");
-                //_startMillis = millis();
                 _startMillis = currM;
                 _angle = _desired;
                 _prevAngle = _angle;
-                //Serial.println("3");
 
-                //Command *tmp;
-                //if(xQueuePeek(commandQ, &tmp, 0))
-                //{
                 Command cmd;
-                //Serial.println("4");
+
                 if(xQueueReceive(commandQ, &cmd, 0))
                 {
-                    //Serial.println("5");
                     _desired = cmd.angle;
                     _duration = cmd.duration;
                 }
-                //}
-
-               //Serial.println("6");
             }
             else if(_desired != _angle);
             {
-                //int16_t y = (int16_t) (_desired - _prevAngle) * ((_currentMillis - _startMillis) / _duration);
-                //int16_t y = (int16_t) (_desired - _prevAngle) * ((currM - _startMillis) / _duration);
-                //Serial.print(y);
-                //Serial.print("_______________");
-                //Serial.println((_desired - _prevAngle) * ((currM - _startMillis) / _duration));
-                //Serial.println("7");
                 _angle = _prevAngle + (_desired - _prevAngle) * ((currM - _startMillis) / _duration);
-                /*Serial.println("8");
-                Serial.print(_desired);Serial.print(" - ");Serial.print(_prevAngle);Serial.print(" * ");
-                Serial.print(currM);Serial.print(" - ");Serial.print(_startMillis);Serial.print(" / ");Serial.println(_duration);
-                Serial.println(_angle);*/
             }
-            //Serial.println("9");
             _SetPos(_angle);
-            //Serial.println("10");
         }
 
         bool QueueFinished()
@@ -141,6 +110,12 @@ class MyServo
             }
         }
 
+        void Clear()
+        {
+            vQueueDelete(commandQ);
+            commandQ = xQueueCreate(16, sizeof(struct Command));
+        }
+
         uint8_t GetPos()
         {
             return _angle;
@@ -150,7 +125,7 @@ class MyServo
         Adafruit_PWMServoDriver *pcaBoard;
         QueueHandle_t commandQ;
         
-        uint8_t _pin, _channel, _mid, _default, _angle, _prevAngle, _desired;
+        uint8_t _pin, _channel, _mid, _default, _angle, _prevAngle, _desired, _lastInserted;
         float _duration = 400;
         unsigned long _currentMillis, _startMillis;
         bool _pca;
