@@ -210,7 +210,7 @@ void mainLoop(void* d) {
                     case Walking:
                         if(Tronik.Strength != 0)
                         {
-                            if(Tronik.Finished(8))
+                            if(Tronik.Finished(4))
                             {
                                 if(Tronik.Gait == 33)
                                     Tronik.Step33(Tronik.Angle);

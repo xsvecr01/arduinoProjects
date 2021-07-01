@@ -7,7 +7,7 @@ class Hexapod
         Leg* Legs[6];
 
         uint8_t Strength = 0;
-        uint8_t Angle = 0;
+        uint16_t Angle = 0;
         //Position 0 = folded, 1 = standing
         uint8_t Position = 0;
         uint8_t Height = 1;
@@ -365,7 +365,7 @@ class Hexapod
         {
             float x0 = 0;
             float y = 60;
-            float z2 = _height;
+            float z2 = _height/2;
             float z0 = 1;
             
             l->SetXYZ(x0, y, z2, _height, _duration/4);
