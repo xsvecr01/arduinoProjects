@@ -50,6 +50,14 @@ MyServo* allServos[18];
 Leg* allLegs[6];
 
 
+// WiFi constants
+const char* ssid = "myAP";
+const char* password =  "supakicka";
+ 
+WiFiServer server(PORT);
+
+
+
 /********* FUNCTIONS *********/
 
 void updateServos(void* d)
@@ -74,6 +82,164 @@ void updateServos(void* d)
             count = 1;
             delay(1);
         }
+    }
+}
+
+int xd = 0;
+
+unsigned long currM;
+unsigned long startM;
+
+void mainLoop(void* d) {
+    while(1)
+    {
+        if(!xd)
+        {
+            Serial.println("mainLoop running on core: ");
+            Serial.println(xPortGetCoreID());
+            xd = 1;
+        }
+        
+        WiFiClient client = server.available();
+    
+        char buff[20];
+        char curr = -1;
+        int id = 0;
+        int idP = 0;
+        if (client)
+        {
+            startM = millis();
+            
+            while (client.connected())
+            {
+                while (client.available()>0)
+                {
+                    char c = client.read();
+                    if(c == 'i')
+                    {
+                        startM = millis();
+                    }
+                    else if(c == ';')
+                    {
+                        buff[id] = '\0';
+                        id = 0;
+                        switch(idP)
+                        {
+                            case 0:
+                                Tronik.Strength = atoi(buff);
+                                break;
+                            case 1:
+                                Tronik.Angle = atoi(buff);
+                                break;
+                            case 2:
+                                Tronik.Position = atoi(buff);
+                                break;
+                            case 3:
+                                Tronik.Height = atoi(buff);
+                                break;
+                            case 4:
+                                Tronik.Gait = atoi(buff);
+                                break;
+                            case 5:
+                                Tronik.RotL = atoi(buff);
+                                break;
+                            case 6:
+                                Tronik.RotR = atoi(buff);
+                                //Serial.print("Stre: "); Serial.print(Tronik.Strength); Serial.print(", Angle: "); Serial.print(Tronik.Angle); Serial.print(", Fold: "); Serial.print(Tronik.Position);
+                                //Serial.print(", Height: "); Serial.print(Tronik.Height); Serial.print(", Gait: "); Serial.println(Tronik.Gait);
+                                break;
+                            default:
+                                break;
+                        }
+                        idP++;
+                        if(idP > 6)
+                        {
+                            idP = 0;
+                        }
+                    }
+                    else
+                    {
+                        buff[id] = c;
+                        id++;
+                    }
+                }
+                //delay(10);
+                currM = millis();
+    
+                if(currM - startM > 2000)
+                {
+                    break;
+                }
+    
+                // state machine here
+                switch(Tronik.state)
+                {
+                    case Sitting:
+                        if(Tronik.Position)
+                        {
+                            if(Tronik.Finished(0))
+                                Tronik.Fold(0);
+                            Tronik.state = Standing;
+                        }
+                        break;
+                        
+                    case Standing:
+                        if(!Tronik.Position)
+                        {
+                            if(Tronik.Finished(0))
+                                Tronik.Fold(1);
+                            Tronik.state = Sitting;
+                        }
+                        else if(!Tronik.Strength)
+                        {
+                            if(Tronik.Finished(0))
+                                Tronik.ChangeHeight();
+                        }
+                        else if(Tronik.Strength)
+                        {
+                            if(Tronik.Gait == 33)
+                                Tronik.Prep33();
+                            else if(Tronik.Gait == 42)
+                                Tronik.Prep42(Tronik.Angle);
+                            else if(Tronik.Gait == 51)
+                                Tronik.Prep51(Tronik.Angle);
+                            Tronik.state = Walking;
+                        }
+                        break;
+                        
+                    case Walking:
+                        if(Tronik.Strength != 0)
+                        {
+                            if(Tronik.Finished(8))
+                            {
+                                if(Tronik.Gait == 33)
+                                    Tronik.Step33(Tronik.Angle);
+                                else if(Tronik.Gait == 42)
+                                    Tronik.Step42(Tronik.Angle);
+                                else if(Tronik.Gait == 51)
+                                    Tronik.Step51(Tronik.Angle);
+                            }
+                        }
+                        else
+                        {
+                            Tronik.Stop();
+                            Tronik.Adjust();
+                            if(Tronik.Finished(0));
+                                Tronik.state = Standing;
+                        }
+                        break;
+    
+                    case Rotating:
+                        break;
+                }
+                delay(1);
+            }
+            
+            client.stop();
+            Serial.println("Client disconnected");
+            delay(10);
+        }
+        delay(10);
     }
 }
 
@@ -133,6 +299,7 @@ void initServos()
 int angle = 0;
 
 TaskHandle_t TaskRefresh;
+TaskHandle_t TaskLoop;
 
 
 /********* SETUP *********/
@@ -147,44 +314,33 @@ void setup() {
     delay(500);
 
     xTaskCreatePinnedToCore(updateServos, "TaskRefresh", 8192, NULL, 2, &TaskRefresh, 1);
-
     delay(2000);
-    Tronik.Fold(false);
+    
+    // configure AP
+    WiFi.softAP(ssid, password);
+    WiFi.setSleep(false);  
+    server.begin();
 
-    Tronik.Prep33();
-
+    xTaskCreatePinnedToCore(mainLoop, "TaskLoop", 8192, NULL, 1, &TaskLoop, 0);
+    //Tronik.Fold(0);
     //Tronik.Prep33();
-
-    //Tronik.Prep51(0);
 }
 
 
 
 /********* MAIN *********/
-int xd = 0;
-void loop() {
 
-    /*
-    switch(Tronik.state)
-    {
-        case Sitting:
-            break;
-        case Standing:
-            break;
-        case Walking:
-            break;
-    }*/
-    
-    if(!xd)
+void loop() {
+    /*if(!xd)
     {
         Serial.println("loop running on core: ");
         Serial.println(xPortGetCoreID());
         xd = 1;
     }
-    if(Tronik.Finished())
+    
+    if(Tronik.Finished(8))
     {
-        Tronik.RotL33();
-    }
-    delay(1);
-
+        Tronik.Step33(angle);
+        angle+=10;
+    }*/
 }

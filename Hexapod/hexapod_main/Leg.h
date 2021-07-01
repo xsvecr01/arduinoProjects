@@ -103,9 +103,9 @@ class Leg
             }
         }
 
-        bool Finished()
+        bool Finished(int items)
         {
-            if(_Coxa->QueueFinished() && _Femur->QueueFinished() && _Tibia->QueueFinished())
+            if(_Coxa->QueueFinished(items) && _Femur->QueueFinished(items) && _Tibia->QueueFinished(items))
             {
                 return true;
             }

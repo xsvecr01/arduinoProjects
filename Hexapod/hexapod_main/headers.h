@@ -1,6 +1,8 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <cQueue.h>
 #include <Wire.h>
+#include <WiFi.h>
+#include <WifiAP.h>
 
 /********* CONSTANTS *********/
 #define S0  5   //coxa
@@ -43,5 +45,7 @@
 
 #define TEN_EIGHTY 0.05555555555555555555555556  // 10/180
 
+#define PORT 51136
+
 enum LegPosition {Front, Middle, Back};
-enum State {Sitting, Standing, Walking};
+enum State {Sitting, Standing, Walking, Stopped, Rotating};

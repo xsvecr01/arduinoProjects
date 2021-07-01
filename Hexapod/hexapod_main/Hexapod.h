@@ -5,11 +5,16 @@ class Hexapod
     public:
         Leg *RF, *RM, *RB, *LF, *LM, *LB;
         Leg* Legs[6];
-        int Speed = 0;
-        int Angle = 0;
-        int Height = 1;
-        bool Folded = true;
-        bool Strafe = true;
+
+        uint8_t Strength = 0;
+        uint8_t Angle = 0;
+        //Position 0 = folded, 1 = standing
+        uint8_t Position = 0;
+        uint8_t Height = 1;
+        uint8_t Gait = 33;
+        uint8_t RotL = 0;
+        uint8_t RotR = 0;
+        
         State state;
 
         Hexapod(Leg *RightFront, Leg *RightMiddle, Leg *RightBack, Leg *LeftFront, Leg *LeftMiddle, Leg *LeftBack)
@@ -29,9 +34,9 @@ class Hexapod
             state = Sitting;
         }
 
-        bool Finished()
+        bool Finished(int items)
         {
-            return RF->Finished() && RM->Finished() && RB->Finished() && LF->Finished() && LM->Finished() && LB->Finished();
+            return RF->Finished(items) && RM->Finished(items) && RB->Finished(items) && LF->Finished(items) && LM->Finished(items) && LB->Finished(items);
         }
 
         void SetHeight()
@@ -39,6 +44,16 @@ class Hexapod
             for(Leg *l : Legs)
             {
                 l->SetXYZ(0, 60, 1, _height, _duration);
+            }
+        }
+
+        void Adjust()
+        {
+            for(int i = 0; i < 6; i++)
+            {
+                Legs[i]->Sleep((_duration/2) * i);
+                AdjustLeg(Legs[i]);
+                //Legs[i]->Sleep((_duration/2) * (6 - i));
             }
         }
 
@@ -67,8 +82,6 @@ class Hexapod
                     l->SetXYZ(0, 60, _height + 10, _height, _duration/2);
                     l->SetXYZ(0, 60, 1, _height, _duration/2);
                 }
-                //LF->SetXYZ(0, 60, _height + 10, _height, _duration/2);
-                //LF->SetXYZ(0, 60, 1, _height, _duration/2);
             }
         }
 
@@ -267,7 +280,7 @@ class Hexapod
             if(Height == 0)
             {
                 _height = 15;
-                _duration = 600;
+                _duration = 800;
             }
             else if(Height == 1)
             {
@@ -276,7 +289,7 @@ class Hexapod
             }
             else if(Height == 2)
             {
-                _height = 50;
+                _height = 60;
                 _duration = 1400;
             }
             if(_oldHeight != _height)
@@ -289,7 +302,7 @@ class Hexapod
     private:
         int _height = 30;
         int _oldHeight = _height;
-        uint16_t _duration = 2000;
+        uint16_t _duration = 1000;
 
         // 72 to 108
         // dur: _duration * dur
@@ -348,6 +361,16 @@ class Hexapod
             l->SetXYZ(-x1, y, z0, _height, _duration/8);
         }
 
+        void AdjustLeg(Leg *l)
+        {
+            float x0 = 0;
+            float y = 60;
+            float z2 = _height;
+            float z0 = 1;
+            
+            l->SetXYZ(x0, y, z2, _height, _duration/4);
+            l->SetXYZ(x0, y, z0, _height, _duration/4);
+        }
 
         float RotateX(float x, float angle)
         {

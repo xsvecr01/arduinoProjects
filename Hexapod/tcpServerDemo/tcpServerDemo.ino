@@ -4,7 +4,7 @@
 const char* ssid = "myAP";
 const char* password =  "supakicka";
  
-WiFiServer server(666);
+WiFiServer server(51136);
 
 void setup() {
  
@@ -21,7 +21,7 @@ void setup() {
 }
 // Strength + ";" + Angle + ";" + Fold + ";" + Strafe + ";" + Height + ";\n"
 
-char buff[20];
+char buff[26];
 char curr = -1;
 int id = 0;
 
@@ -30,8 +30,8 @@ int idP = 0;
 int strength = 0;
 int angle = 0;
 int fold = 0;
-int strafe = 0;
 int height = 0;
+int gait, rotl, rotr;
 
 unsigned long currM;
 unsigned long startM;
@@ -53,13 +53,14 @@ void loop() {
                 {
                     startM = millis();
                 }
-                if(c == ';')
+                else if(c == ';')
                 {
                     buff[id] = '\0';
                     id = 0;
                     switch(idP)
                     {
                         case 0:
+                            Serial.println(buff);
                             strength = atoi(buff);
                             break;
                         case 1:
@@ -69,18 +70,24 @@ void loop() {
                             fold = atoi(buff);
                             break;
                         case 3:
-                            strafe = atoi(buff);
+                            height = atoi(buff);
                             break;
                         case 4:
-                            height = atoi(buff);
-                            Serial.print("Strength: "); Serial.print(strength); Serial.print(", Angle: "); Serial.print(angle); Serial.print(", Fold: "); Serial.print(fold);
-                            Serial.print(", Strafe: "); Serial.print(strafe); Serial.print(", Height: "); Serial.println(height);
+                            gait = atoi(buff);
+                            break;
+                        case 5:
+                            rotl = atoi(buff);
+                            break;
+                        case 6:
+                            rotr = atoi(buff);
+                            Serial.print("Stre: "); Serial.print(strength); Serial.print(", Angle: "); Serial.print(angle); Serial.print(", Fold: "); Serial.print(fold);
+                            Serial.print(", Height: "); Serial.print(height); Serial.print(", Gait: "); Serial.println(gait);
                             break;
                         default:
                             break;
                     }
                     idP++;
-                    if(idP > 4)
+                    if(idP > 6)
                     {
                         idP = 0;
                     }

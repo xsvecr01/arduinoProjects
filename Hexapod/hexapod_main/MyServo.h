@@ -76,7 +76,7 @@ class MyServo
         }
 
         void Refresh(unsigned long currM)
-        {
+        {       
             if(currM - _startMillis >= _duration)
             {
                 _startMillis = currM;
@@ -91,16 +91,18 @@ class MyServo
                     _duration = cmd.duration;
                 }
             }
-            else if(_desired != _angle);
+            else if(_desired != _angle)
             {
                 _angle = _prevAngle + (_desired - _prevAngle) * ((currM - _startMillis) / _duration);
             }
+            if(uxQueueMessagesWaiting(commandQ) == 0 && _lastInserted == _angle && _desired == _angle)
+                _startMillis = currM;
             _SetPos(_angle);
         }
 
-        bool QueueFinished()
+        bool QueueFinished(int items)
         {
-            if(uxQueueMessagesWaiting(commandQ) <= 8)
+            if(uxQueueMessagesWaiting(commandQ) <= items)
             {
                 return true;
             }
@@ -127,7 +129,7 @@ class MyServo
         
         uint8_t _pin, _channel, _mid, _default, _angle, _prevAngle, _desired, _lastInserted;
         float _duration = 400;
-        unsigned long _currentMillis, _startMillis;
+        unsigned long _startMillis;
         bool _pca;
         
 
