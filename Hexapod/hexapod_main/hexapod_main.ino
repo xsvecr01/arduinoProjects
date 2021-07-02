@@ -210,7 +210,7 @@ void mainLoop(void* d) {
                     case Walking:
                         if(Tronik.Strength != 0)
                         {
-                            if(Tronik.Finished(4))
+                            if(Tronik.Finished(6))
                             {
                                 if(Tronik.Gait == 33)
                                     Tronik.Step33(Tronik.Angle);
@@ -236,10 +236,9 @@ void mainLoop(void* d) {
             }
             
             client.stop();
-            Serial.println("Client disconnected");
             delay(10);
         }
-        delay(10);
+        delay(100);
     }
 }
 
@@ -322,8 +321,6 @@ void setup() {
     server.begin();
 
     xTaskCreatePinnedToCore(mainLoop, "TaskLoop", 8192, NULL, 1, &TaskLoop, 0);
-    //Tronik.Fold(0);
-    //Tronik.Prep33();
 }
 
 

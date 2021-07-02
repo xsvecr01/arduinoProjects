@@ -118,7 +118,7 @@ class MyServo
             commandQ = xQueueCreate(16, sizeof(struct Command));
         }
 
-        uint8_t GetPos()
+        int GetPos()
         {
             return _angle;
         }

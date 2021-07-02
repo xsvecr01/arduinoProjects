@@ -15,7 +15,7 @@ class Leg
             _legPos = legPos;
         }
 
-        void SetXYZ(float x, float y, float z, float z_off, uint16_t duration)
+        void SetXYZ(float x, float y, float z, float z_off, uint16_t duration, bool adjust = false)
         {
             z_off += 18;
             float z_dif = z_off - z;            
@@ -29,7 +29,7 @@ class Leg
             gamma = (int)(gamma * 180 / PI);
             alpha = (int)(alpha * 180 / PI);
             beta = (int)(beta * 180 / PI);
-            
+
             if(_right)
             {
                 _Coxa->SetPos(_Coxa->GetMid() - gamma, duration);
@@ -42,6 +42,40 @@ class Leg
                 _Femur->SetPos(_Femur->GetMid() + (alpha - 90), duration);
                 _Tibia->SetPos(_Tibia->GetMid() - (beta - 90), duration);
             }
+        }
+
+        void Down(float height, uint16_t duration)
+        {
+            float gamma;
+            float alpha;
+            float beta;
+
+            if(_right)
+            {
+                gamma = _Coxa->GetMid() - _Coxa->GetPos();
+                alpha = _Femur->GetMid() - _Femur->GetPos() + 90;
+                beta = - _Tibia->GetMid() + _Tibia->GetPos() + 90;
+            }
+            else
+            {
+                gamma = - _Coxa->GetMid() + _Coxa->GetPos();
+                alpha = - _Femur->GetMid() + _Femur->GetPos() + 90;
+                beta = _Tibia->GetMid() - _Tibia->GetPos() + 90;
+            }
+
+
+            gamma = gamma * (PI / 180);
+            alpha = (90 - alpha) * (PI / 180);
+            beta = (180 + beta) * (PI / 180);
+
+            float y = (COXA_LEN + (FEMUR_LEN * cos(alpha)) + (TIBIA_LEN * cos(alpha - beta))) * cos(gamma);
+            float x = (COXA_LEN + (FEMUR_LEN * cos(alpha)) + (TIBIA_LEN * cos(alpha - beta))) * sin(gamma);
+
+            /*Serial.print("a="); Serial.print(_Femur->GetPos()); Serial.print(" b="); Serial.print(_Tibia->GetPos()); Serial.print(" g="); Serial.println(_Coxa->GetPos());
+            Serial.print("a="); Serial.print(alpha); Serial.print(" b="); Serial.print(beta); Serial.print(" g="); Serial.println(gamma);
+            Serial.print(x); Serial.print(" "); Serial.println(y);*/
+
+            SetXYZ(x, y, 1, height, duration);
         }
 
         void Rotate(uint16_t angle, uint16_t duration)

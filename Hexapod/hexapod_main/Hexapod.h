@@ -51,9 +51,10 @@ class Hexapod
         {
             for(int i = 0; i < 6; i++)
             {
+                Legs[i]->Down(_height, _duration);
                 Legs[i]->Sleep((_duration/2) * i);
                 AdjustLeg(Legs[i]);
-                //Legs[i]->Sleep((_duration/2) * (6 - i));
+                Legs[i]->Sleep(100);
             }
         }
 
@@ -98,7 +99,7 @@ class Hexapod
             float x1 = 20;
             float x1_ = x1;
             float y = 60;
-            float z2 = _height - 10;
+            float z2 = _height - 5;
             float angle_ = angle;
 
             
@@ -274,13 +275,13 @@ class Hexapod
             }
         }
        
-        
+
         void ChangeHeight()
         {
             if(Height == 0)
             {
                 _height = 15;
-                _duration = 800;
+                _duration = 600;
             }
             else if(Height == 1)
             {
@@ -289,7 +290,7 @@ class Hexapod
             }
             else if(Height == 2)
             {
-                _height = 60;
+                _height = 50;
                 _duration = 1400;
             }
             if(_oldHeight != _height)
