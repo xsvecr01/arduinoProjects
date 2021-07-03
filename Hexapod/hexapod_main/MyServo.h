@@ -47,15 +47,6 @@ class MyServo
 
         void Sleep(uint16_t duration)
         {
-            
-            /*uint8_t tmp_angle = _desired;
-            Command tmp;
-
-            if(xQueuePeek(commandQ, &tmp, 0))
-            {
-                tmp_angle = tmp.angle;
-            }*/
-
             SetPos(_lastInserted, duration);
         }
 
@@ -102,7 +93,12 @@ class MyServo
 
         bool QueueFinished(int items)
         {
-            if(uxQueueMessagesWaiting(commandQ) <= items)
+            if(items == 0)
+            {
+                if(uxQueueMessagesWaiting(commandQ) == 0 && _lastInserted == _angle && _desired == _angle)
+                    return true;
+            }
+            else if(uxQueueMessagesWaiting(commandQ) <= items)
             {
                 return true;
             }
@@ -116,6 +112,7 @@ class MyServo
         {
             vQueueDelete(commandQ);
             commandQ = xQueueCreate(16, sizeof(struct Command));
+            _desired = _angle;
         }
 
         int GetPos()

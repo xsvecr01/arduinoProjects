@@ -54,7 +54,14 @@ class Hexapod
                 Legs[i]->Down(_height, _duration);
                 Legs[i]->Sleep((_duration/2) * i);
                 AdjustLeg(Legs[i]);
-                Legs[i]->Sleep(100);
+            }
+        }
+
+        void Sleep()
+        {
+            for(Leg *l : Legs)
+            {
+                l->Sleep(_duration/4);
             }
         }
 

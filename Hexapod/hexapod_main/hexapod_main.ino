@@ -145,8 +145,6 @@ void mainLoop(void* d) {
                                 break;
                             case 6:
                                 Tronik.RotR = atoi(buff);
-                                //Serial.print("Stre: "); Serial.print(Tronik.Strength); Serial.print(", Angle: "); Serial.print(Tronik.Angle); Serial.print(", Fold: "); Serial.print(Tronik.Position);
-                                //Serial.print(", Height: "); Serial.print(Tronik.Height); Serial.print(", Gait: "); Serial.println(Tronik.Gait);
                                 break;
                             default:
                                 break;
@@ -225,6 +223,7 @@ void mainLoop(void* d) {
                             Tronik.Stop();
                             Tronik.Adjust();
                             if(Tronik.Finished(0));
+                                Tronik.Sleep();
                                 Tronik.state = Standing;
                         }
                         break;
