@@ -188,21 +188,27 @@ void mainLoop(void* d) {
                                 Tronik.Fold(1);
                             Tronik.state = Sitting;
                         }
+                        else if(Tronik.Strength)
+                        {
+                            Tronik.PrepStep();
+                            Tronik.state = Walking;
+                        }
+                        else if(Tronik.RotL)
+                        {
+                            Tronik.PrepRotL();
+                            Tronik.state = Rotating;
+                        }
+                        else if(Tronik.RotR)
+                        {
+                            Tronik.PrepRotL();
+                            Tronik.state = Rotating;
+                        }
                         else if(!Tronik.Strength)
                         {
                             if(Tronik.Finished(0))
-                                Tronik.ChangeHeight();
+                                Tronik.ChangeHeight();   
                         }
-                        else if(Tronik.Strength)
-                        {
-                            if(Tronik.Gait == 33)
-                                Tronik.Prep33();
-                            else if(Tronik.Gait == 42)
-                                Tronik.Prep42(Tronik.Angle);
-                            else if(Tronik.Gait == 51)
-                                Tronik.Prep51(Tronik.Angle);
-                            Tronik.state = Walking;
-                        }
+                        
                         break;
                         
                     case Walking:
@@ -210,25 +216,36 @@ void mainLoop(void* d) {
                         {
                             if(Tronik.Finished(6))
                             {
-                                if(Tronik.Gait == 33)
-                                    Tronik.Step33(Tronik.Angle);
-                                else if(Tronik.Gait == 42)
-                                    Tronik.Step42(Tronik.Angle);
-                                else if(Tronik.Gait == 51)
-                                    Tronik.Step51(Tronik.Angle);
+                                Tronik.Step();
                             }
                         }
                         else
                         {
-                            Tronik.Stop();
-                            Tronik.Adjust();
-                            if(Tronik.Finished(0));
-                                Tronik.Sleep();
-                                Tronik.state = Standing;
+                            Tronik.state = Stopped;
                         }
                         break;
     
                     case Rotating:
+                        if(Tronik.RotL)
+                        {
+                            if(Tronik.Finished(6))
+                                Tronik.RotateLeft();
+                        }
+                        else if(Tronik.RotR)
+                        {
+                            if(Tronik.Finished(6))
+                                Tronik.RotateRight();
+                        }
+                        else
+                            Tronik.state = Stopped;
+                        break;
+
+                    case Stopped:
+                        Tronik.Stop();
+                        Tronik.Adjust();
+                        if(Tronik.Finished(0));
+                            Tronik.Sleep();
+                            Tronik.state = Standing;
                         break;
                 }
                 delay(1);

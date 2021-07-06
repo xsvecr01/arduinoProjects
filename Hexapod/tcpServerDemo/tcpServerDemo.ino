@@ -81,7 +81,8 @@ void loop() {
                         case 6:
                             rotr = atoi(buff);
                             Serial.print("Stre: "); Serial.print(strength); Serial.print(", Angle: "); Serial.print(angle); Serial.print(", Fold: "); Serial.print(fold);
-                            Serial.print(", Height: "); Serial.print(height); Serial.print(", Gait: "); Serial.println(gait);
+                            Serial.print(", Height: "); Serial.print(height); Serial.print(", Gait: "); Serial.print(gait); Serial.print(", RotL: "); Serial.print(rotl);
+                             Serial.print(", RotR: "); Serial.println(rotr);
                             break;
                         default:
                             break;
