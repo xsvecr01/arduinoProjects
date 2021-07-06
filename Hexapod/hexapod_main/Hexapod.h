@@ -117,24 +117,40 @@ class Hexapod
         {
             if(Gait == 33)
                 PrepRot33();
+            else if(Gait == 42)
+                PrepRot42(false);
+            else if(Gait == 51)
+                PrepRot51(false);
         }
 
         void PrepRotR()
         {
             if(Gait == 33)
                 PrepRot33();
+            else if(Gait == 42)
+                PrepRot42();
+            else if(Gait == 51)
+                PrepRot51();
         }
 
         void RotateLeft()
         {
             if(Gait == 33)
-                RotL33();
+                Rot33(false);
+            else if(Gait == 42)
+                Rot42(false);
+            else if(Gait == 51)
+                Rot51(false);
         }
 
         void RotateRight()
         {
             if(Gait == 33)
-                RotR33();
+                Rot33();
+            else if(Gait == 42)
+                Rot42();
+            else if(Gait == 51)
+                Rot51();
         }
 
         void Prep33()
@@ -177,19 +193,13 @@ class Hexapod
         }
 
 
-        void RotL33()
-        {
-            for(Leg *l : Legs)
-            {
-                RotLeg(l, 0.5, false);
-            }
-        }
 
-        void RotR33()
+
+        void Rot33(bool right = true)
         {
             for(Leg *l : Legs)
             {
-                RotLeg(l, 0.5);
+                RotLeg(l, 0.5, right);
             }
         }
 
@@ -210,21 +220,62 @@ class Hexapod
             RM->SetXYZ(x0, y, z0, _height, _duration/4);
         }
 
-        void PrepRot42()
+        void PrepRot42(bool right = true)
         {
             float x0 = 0;
             float x1 = 20;
             float x1_ = x1;
             float y = 60;
             float z2 = _height - 10;
+            float angle_, angle = 0;
+
+            if(z2 < 20)
+            {
+                z2 = 20;
+            }
+            float z1 = z2 / 2;
             float z0 = 1;
+
+            angle = angle_;
+            x1 = x1_;
+            AngleX1(RF, &angle, &x1);
+
+            if(!right)
+            {
+                x1 = -x1;
+            }
+
+            RF->SetXYZ(x0, y, z2, _height, _duration/4);
+            RF->SetXYZ(-x1, y, z1, _height, _duration/8);
+            RF->SetXYZ(-x1, y, z0, _height, _duration/8);
             
-            LF->SetXYZ(x0, y, z2, _height, _duration/4);
-            LF->SetXYZ(x0, y, z0, _height, _duration/4);
+            angle = angle_;
+            x1 = x1_;
+            AngleX1(LB, &angle, &x1);
+
+            if(!right)
+            {
+                x1 = -x1;
+            }
+
             LB->SetXYZ(x0, y, z2, _height, _duration/4);
-            LB->SetXYZ(x0, y, z0, _height, _duration/4);
-            RM->SetXYZ(x0, y, z2, _height, _duration/4);
-            RM->SetXYZ(x0, y, z0, _height, _duration/4);
+            LB->SetXYZ(-x1, y, z1, _height, _duration/8);
+            LB->SetXYZ(-x1, y, z0, _height, _duration/8);
+            
+
+            RotLeg(RM, 0.5, right);
+            RotLeg(LM, 0.5, right);
+
+            RotLeg(RB, 1, right);
+            RotLeg(LF, 1, right);
+        }
+
+        void Rot42(bool right = true)
+        {
+            for(Leg *l : Legs)
+            {
+                RotLeg(l, 1, right);
+            }
         }
 
         void Prep42(float angle)
@@ -284,6 +335,22 @@ class Hexapod
                 l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z1, _height, _duration/8);
                 l->SetXYZ(RotateX(x1, angle),  RotateY(x1, y, angle),  z0, _height, _duration/8);
                 l->SetXYZ(RotateX(-x1, angle), RotateY(-x1, y, angle), z0, _height, _duration);
+            }
+        }
+
+        void PrepRot51(bool right = true)
+        {
+            for(int i = 0; i < 6; i++)
+            {
+                RotLeg(Legs[i], 0.5 * (i+1), right);
+            }
+        }
+
+        void Rot51(bool right = true)
+        {
+            for(Leg *l : Legs)
+            {
+                RotLeg(l, 2.5, right);
             }
         }
 
@@ -373,9 +440,9 @@ class Hexapod
         int _oldHeight = _height;
         uint16_t _duration = 1000;
 
-        // 72 to 108
+
         // dur: _duration * dur
-        // 33gait: dur = 0.5 
+        // 33gait: dur = 0.5
         void RotLeg(Leg *l, float dur, bool right = true)
         {
             float x0 = 0;

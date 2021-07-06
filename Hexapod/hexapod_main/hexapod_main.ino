@@ -200,7 +200,7 @@ void mainLoop(void* d) {
                         }
                         else if(Tronik.RotR)
                         {
-                            Tronik.PrepRotL();
+                            Tronik.PrepRotR();
                             Tronik.state = Rotating;
                         }
                         else if(!Tronik.Strength)
@@ -242,10 +242,17 @@ void mainLoop(void* d) {
 
                     case Stopped:
                         Tronik.Stop();
+                        while(!Tronik.Finished(0))
+                        {
+                            delay(5);
+                        }
                         Tronik.Adjust();
-                        if(Tronik.Finished(0));
-                            Tronik.Sleep();
-                            Tronik.state = Standing;
+                        while(!Tronik.Finished(0))
+                        {
+                            delay(5);
+                        }
+                        Tronik.Sleep();
+                        Tronik.state = Standing;
                         break;
                 }
                 delay(1);
